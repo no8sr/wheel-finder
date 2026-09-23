@@ -1,6 +1,18 @@
 import streamlit as st
 from PIL import Image
 
+from predict import predict_image
+DISPLAY_NAMES = {
+    "BBS_LM": "BBS LM",
+    "BBS_RI_A": "BBS RI-A",
+    "RAYS_VR_G025": "RAYS VOLK RACING G025",
+    "RAYS_VR_TE37_SAGA_Splus":
+        "RAYS VOLK RACING TE37 SAGA S-plus",
+    "WORK_EMOTION_CR_Kiwami":
+        "WORK EMOTION CR Kiwami",
+    "WORK_MEISTER_S1_3PIECE":
+        "WORK MEISTER S1 3PIECE",
+}
 
 st.set_page_config(
     page_title="Wheel Finder",
@@ -253,33 +265,33 @@ if st.button(
     else:
         st.subheader("検索結果")
 
-        st.info(
-            "現在は画面確認用の仮結果です。"
-            "今後、CNNの予測結果に置き換えます。"
+        results = predict_image(
+    image,
+    top_k=3
+)
+
+result_columns = st.columns(3)
+
+for rank, result in enumerate(results):
+    class_name = result["class_name"]
+    probability = result["probability"]
+    display_name = DISPLAY_NAMES.get(
+        class_name,
+        class_name
+    )
+
+    with result_columns[rank\]:
+        st.write(f"### 第{rank + 1}候補")
+        st.write(display_name)
+
+        st.progress(
+            float(probability)
         )
 
-        result_col1, result_col2, result_col3 = st.columns(3)
-
-        with result_col1:
-            st.write("### 第1候補")
-            st.write("メーカーA")
-            st.write("モデルA")
-            st.progress(0.86)
-            st.write("画像の予測確率：86%")
-
-        with result_col2:
-            st.write("### 第2候補")
-            st.write("メーカーB")
-            st.write("モデルB")
-            st.progress(0.72)
-            st.write("画像の予測確率：72%")
-
-        with result_col3:
-            st.write("### 第3候補")
-            st.write("メーカーC")
-            st.write("モデルC")
-            st.progress(0.61)
-            st.write("画像の予測確率：61%")
+        st.write(
+            f"画像の予測確率："
+            f"{probability * 100:.1f}%"
+        )
 
 
 st.divider()
