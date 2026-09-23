@@ -266,32 +266,31 @@ if st.button(
         st.subheader("検索結果")
 
         results = predict_image(
-    image,
-    top_k=3
-)
-
-result_columns = st.columns(3)
-
-for rank, result in enumerate(results):
-    class_name = result["class_name"]
-    probability = result["probability"]
-    display_name = DISPLAY_NAMES.get(
-        class_name,
-        class_name
-    )
-
-    with result_columns[rank\]:
-        st.write(f"### 第{rank + 1}候補")
-        st.write(display_name)
-
-        st.progress(
-            float(probability)
+            image,
+            top_k=3
         )
 
-        st.write(
-            f"画像の予測確率："
-            f"{probability * 100:.1f}%"
-        )
+        result_columns = st.columns(3)
+
+        for rank, result in enumerate(results):
+            class_name = result["class_name"]
+            probability = result["probability"]
+
+            display_name = DISPLAY_NAMES.get(
+                class_name,
+                class_name
+            )
+
+            result_column = result_columns[rank]
+
+            with result_column:
+                st.write(f"### 第{rank + 1}候補")
+                st.write(display_name)
+                st.progress(float(probability))
+                st.write(
+                    f"画像の予測確率："
+                    f"{probability * 100:.1f}%"
+                )
 
 
 st.divider()
