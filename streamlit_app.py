@@ -181,6 +181,29 @@ def condition_matches(
 
     return selected_text in available_values
 
+def spoke_count_matches(
+    wheel_spoke_count,
+    selected_spoke_count
+):
+    try:
+        wheel_count = int(
+            float(wheel_spoke_count)
+        )
+    except (TypeError, ValueError):
+        return False
+
+    if selected_spoke_count == "13本以上":
+        return wheel_count >= 13
+
+    try:
+        selected_count = int(
+            selected_spoke_count
+        )
+    except (TypeError, ValueError):
+        return False
+
+    return wheel_count == selected_count
+
 def calculate_attribute_score(
     wheel,
     selected_manufacturer,
@@ -200,15 +223,21 @@ def calculate_attribute_score(
     # メーカー
     if selected_manufacturer != "指定なし":
         if wheel["manufacturer"] == selected_manufacturer:
-            score += 15
+            score += 20
             matched_conditions.append("メーカー")
         else:
-            score -= 15
+            score -= 20
             mismatched_conditions.append("メーカー")
 
-    # スポーク数
-    if selected_spoke_count != "指定なし":
-        if str(wheel["spoke_count"]) == str(selected_spoke_count):
+   # スポーク数
+    if selected_spoke_count not in (
+        "指定なし",
+        "数えにくい",
+    ):
+        if spoke_count_matches(
+            wheel.get("spoke_count"),
+            selected_spoke_count
+        ):
             score += 10
             matched_conditions.append("スポーク数")
         else:
@@ -233,7 +262,7 @@ def calculate_attribute_score(
             score -= 10
             mismatched_conditions.append("ピース構造")
 
-        # インチ
+    # インチ
     if selected_inch != "指定なし":
         if condition_matches(
             wheel["inches"],
@@ -251,10 +280,10 @@ def calculate_attribute_score(
             wheel["holes"],
             selected_holes
         ):
-            score += 8
+            score += 5
             matched_conditions.append("穴数")
         else:
-            score -= 8
+            score -= 5
             mismatched_conditions.append("穴数")
 
     # PCD
@@ -266,7 +295,7 @@ def calculate_attribute_score(
             score += 8
             matched_conditions.append("PCD")
         else:
-            score -= 6
+            score -= 8
             mismatched_conditions.append("PCD")
 
     # ピアスボルト
@@ -275,19 +304,24 @@ def calculate_attribute_score(
             score += 5
             matched_conditions.append("ピアスボルト")
         else:
-            score -= 3
+            score -= 5
             mismatched_conditions.append("ピアスボルト")
     
     # 色
     if selected_color != "指定なし":
+        registered_colors = wheel.get(
+            "colors",
+            ""
+        )
+
         if condition_matches(
-            wheel["colors"],
+            registered_colors,
             selected_color
         ):
             score += 3
             matched_conditions.append("色")
         else:
-            score -= 1
+            score -= 3
             mismatched_conditions.append("色")
 
     return (
