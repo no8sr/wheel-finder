@@ -226,6 +226,7 @@ all_top1_count = 0
 all_top3_count = 0
 
 class_results = {}
+detail_results = []
 
 for class_dir in sorted(TEST_DIR.iterdir()):
     if not class_dir.is_dir():
@@ -277,6 +278,56 @@ for class_dir in sorted(TEST_DIR.iterdir()):
             cnn_results,
             correct_wheel,
             all_attribute_score
+        )
+
+        image_prediction = image_ranking[0].get(
+            "class_name"
+        )
+
+        basic_prediction = basic_ranking[0].get(
+            "class_name"
+        )
+
+        all_prediction = all_ranking[0].get(
+            "class_name"
+        )
+
+        image_correct = (
+            image_prediction == correct_class
+        )
+
+        basic_correct = (
+            basic_prediction == correct_class
+        )
+
+        all_correct = (
+            all_prediction == correct_class
+        )
+
+        if not image_correct and basic_correct:
+            result_type = "基本条件によって改善"
+
+        elif not image_correct and all_correct:
+            result_type = "全条件によって改善"
+
+        elif image_correct and not basic_correct:
+            result_type = "条件反映によって悪化"
+
+        elif not image_correct and not basic_correct:
+            result_type = "条件反映後も誤分類"
+
+        else:
+            result_type = "画像のみで正解"
+
+        detail_results.append(
+            {
+                "image_name": image_path.name,
+                "correct_class": correct_class,
+                "image_prediction": image_prediction,
+                "basic_prediction": basic_prediction,
+                "all_prediction": all_prediction,
+                "result_type": result_type
+            }
         )
 
         total_count += 1
@@ -395,3 +446,58 @@ for class_name, result in class_results.items():
         f"{result.get('all_top1')}/"
         f"{result.get('total')}"
     )
+
+print("\n画像ごとの順位変化")
+print("=" * 70)
+
+result_types = (
+    "基本条件によって改善",
+    "全条件によって改善",
+    "条件反映によって悪化",
+    "条件反映後も誤分類",
+)
+
+for result_type in result_types:
+    selected_results = [
+        result
+        for result in detail_results
+        if result.get("result_type") == result_type
+    ]
+
+    print(f"\n{result_type}: {len(selected_results)}枚")
+
+    for result in selected_results:
+        print(
+            f"  画像: {result.get('image_name')}"
+        )
+        print(
+            f"    正解: "
+            f"{result.get('correct_class')}"
+        )
+        print(
+            f"    画像のみ: "
+            f"{result.get('image_prediction')}"
+        )
+        print(
+            f"    基本条件後: "
+            f"{result.get('basic_prediction')}"
+        )
+        print(
+            f"    全条件後: "
+            f"{result.get('all_prediction')}"
+        )
+
+detail_dataframe = pd.DataFrame(
+    detail_results
+)
+
+detail_dataframe.to_csv(
+    "attribute_evaluation_details.csv",
+    index=False,
+    encoding="utf-8-sig"
+)
+
+print(
+    "\n画像ごとの詳細結果を保存しました: "
+    "attribute_evaluation_details.csv"
+)   
