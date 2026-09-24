@@ -1,7 +1,7 @@
-class_name,manufacturer,spoke_count,spoke_type,construction,pierce_bolt
-BBS_LM,BBS,20,メッシュ,2ピース,あり
-BBS_RI_A,BBS,10,Y字スポーク,1ピース,なし
-RAYS_VR_G025,RAYS,10,ツインスポーク,1ピース,なし
-RAYS_VR_TE37_SAGA_Splus,RAYS,6,シングルスポーク,1ピース,なし
-WORK_EMOTION_CR_Kiwami,WORK,10,ツインスポーク,1ピース,なし
-WORK_MEISTER_S1_3PIECE,WORK,5,シングルスポーク,3ピース,あり
+class_name,manufacturer,spoke_count,spoke_type,construction,pierce_bolt,inches,holes,pcds
+BBS_LM,BBS,20,メッシュ,2ピース,あり,17|18|19|20|21,4|5,100|108|112|114.3|120|130
+BBS_RI_A,BBS,10,Y字スポーク,1ピース,なし,16|17|18|19,5,100|108|112|114.3|120|130
+RAYS_VR_G025,RAYS,10,ツインスポーク,1ピース,なし,16|18|19|20,4|5,100|108|112|114.3|120
+RAYS_VR_TE37_SAGA_Splus,RAYS,6,シングルスポーク,1ピース,なし,15|17|18|19|20,4|5,98|100|108|112|114.3|120
+WORK_EMOTION_CR_Kiwami,WORK,10,ツインスポーク,1ピース,なし,15|16|17|18|19,4|5,98|100|114.3
+WORK_MEISTER_S1_3PIECE,WORK,5,シングルスポーク,3ピース,あり,16|17|18|19|20,4|5,100|114.3

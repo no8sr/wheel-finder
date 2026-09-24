@@ -22,12 +22,35 @@ def load_wheel_data():
 
 wheel_data = load_wheel_data()
 
+def split_values(value):
+    if pd.isna(value):
+        return []
+
+    return [
+        item.strip()
+        for item in str(value).split("|")
+    ]
+
+
+def condition_matches(
+    csv_value,
+    selected_value
+):
+    available_values = split_values(csv_value)
+    selected_text = str(selected_value)
+
+    return selected_text in available_values
+
 def calculate_attribute_score(
     wheel,
     selected_manufacturer,
     selected_spoke_count,
     selected_spoke_type,
-    selected_construction
+    selected_construction,
+    selected_inch,
+    selected_holes,
+    selected_pcd,
+    selected_pierce_bolt
 ):
     score = 0
     matched_conditions = []
@@ -68,6 +91,51 @@ def calculate_attribute_score(
         else:
             score -= 10
             mismatched_conditions.append("ピース構造")
+
+        # インチ
+    if selected_inch != "指定なし":
+        if condition_matches(
+            wheel["inches"],
+            selected_inch
+        ):
+            score += 5
+            matched_conditions.append("インチ")
+        else:
+            score -= 5
+            mismatched_conditions.append("インチ")
+
+    # 穴数
+    if selected_holes != "指定なし":
+        if condition_matches(
+            wheel["holes"],
+            selected_holes
+        ):
+            score += 8
+            matched_conditions.append("穴数")
+        else:
+            score -= 8
+            mismatched_conditions.append("穴数")
+
+    # PCD
+    if selected_pcd != "指定なし":
+        if condition_matches(
+            wheel["pcds"],
+            selected_pcd
+        ):
+            score += 8
+            matched_conditions.append("PCD")
+        else:
+            score -= 6
+            mismatched_conditions.append("PCD")
+
+    # ピアスボルト
+    if selected_pierce_bolt != "指定なし":
+        if wheel["pierce_bolt"] == selected_pierce_bolt:
+            score += 5
+            matched_conditions.append("ピアスボルト")
+        else:
+            score -= 3
+            mismatched_conditions.append("ピアスボルト")
 
     return (
         score,
@@ -360,7 +428,11 @@ if st.button(
                     selected_manufacturer=manufacturer,
                     selected_spoke_count=spoke_count,
                     selected_spoke_type=spoke_type,
-                    selected_construction=construction
+                    selected_construction=construction,
+                    selected_inch=inch,
+                    selected_holes=holes,
+                    selected_pcd=pcd,
+                    selected_pierce_bolt=pierce_bolt
                 )
 
                 attribute_score = score_result[0]
