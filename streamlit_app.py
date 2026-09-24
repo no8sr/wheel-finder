@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from PIL import Image
 
@@ -13,6 +14,66 @@ DISPLAY_NAMES = {
     "WORK_MEISTER_S1_3PIECE":
         "WORK MEISTER S1 3PIECE",
 }
+
+@st.cache_data
+def load_wheel_data():
+    return pd.read_csv("wheel_data.csv")
+
+
+wheel_data = load_wheel_data()
+
+def calculate_attribute_score(
+    wheel,
+    selected_manufacturer,
+    selected_spoke_count,
+    selected_spoke_type,
+    selected_construction
+):
+    score = 0
+    matched_conditions = []
+    mismatched_conditions = []
+
+    # メーカー
+    if selected_manufacturer != "指定なし":
+        if wheel["manufacturer"] == selected_manufacturer:
+            score += 15
+            matched_conditions.append("メーカー")
+        else:
+            score -= 15
+            mismatched_conditions.append("メーカー")
+
+    # スポーク数
+    if selected_spoke_count != "指定なし":
+        if str(wheel["spoke_count"]) == str(selected_spoke_count):
+            score += 10
+            matched_conditions.append("スポーク数")
+        else:
+            score -= 10
+            mismatched_conditions.append("スポーク数")
+
+    # スポーク構造
+    if selected_spoke_type != "指定なし":
+        if wheel["spoke_type"] == selected_spoke_type:
+            score += 10
+            matched_conditions.append("スポーク構造")
+        else:
+            score -= 10
+            mismatched_conditions.append("スポーク構造")
+
+    # ピース構造
+    if selected_construction != "指定なし":
+        if wheel["construction"] == selected_construction:
+            score += 10
+            matched_conditions.append("ピース構造")
+        else:
+            score -= 10
+            mismatched_conditions.append("ピース構造")
+
+    return (
+        score,
+        matched_conditions,
+        mismatched_conditions
+    )
 
 st.set_page_config(
     page_title="Wheel Finder",
@@ -83,6 +144,11 @@ st.header("2. 検索条件")
 st.write(
     "分かる情報だけ入力してください。"
     "不明な項目は「指定なし」のままで構いません。"
+)
+
+st.caption(
+    "入力条件は候補順位の調整に使用されます。"
+    "不確かな項目は「指定なし」を選択してください。"
 )
 
 col1, col2, col3 = st.columns(3)
@@ -172,9 +238,9 @@ with st.expander("詳細条件を入力する"):
             "メーカー",
             [
                 "指定なし",
-                "メーカーA",
-                "メーカーB",
-                "メーカーC"
+                "RAYS",
+                "WORK",
+                "BBS"
             ]
         )
 
@@ -236,7 +302,7 @@ with st.expander("詳細条件を入力する"):
         )
 
         construction = st.selectbox(
-            "構造",
+            "ピース構造",
             [
                 "指定なし",
                 "1ピース",
@@ -265,32 +331,183 @@ if st.button(
     else:
         st.subheader("検索結果")
 
-        results = predict_image(
+        # 登録されている6モデルすべての予測値を取得
+        cnn_results = predict_image(
             image,
-            top_k=3
+            top_k=6
         )
 
-        result_columns = st.columns(3)
+        ranked_results = []
 
-        for rank, result in enumerate(results):
+        for result in cnn_results:
             class_name = result["class_name"]
             probability = result["probability"]
 
+            wheel_rows = wheel_data[
+                wheel_data["class_name"] == class_name
+            ]
+
+            if wheel_rows.empty:
+                attribute_score = 0
+                matched_conditions = []
+                mismatched_conditions = []
+
+            else:
+                wheel = wheel_rows.iloc[0]
+
+                score_result = calculate_attribute_score(
+                    wheel=wheel,
+                    selected_manufacturer=manufacturer,
+                    selected_spoke_count=spoke_count,
+                    selected_spoke_type=spoke_type,
+                    selected_construction=construction
+                )
+
+                attribute_score = score_result[0]
+                matched_conditions = score_result[1]
+                mismatched_conditions = score_result[2]
+
+            image_score = probability * 100
+            final_score = image_score + attribute_score
+
+            ranked_results.append(
+                {
+                    "class_name": class_name,
+                    "probability": probability,
+                    "image_score": image_score,
+                    "attribute_score": attribute_score,
+                    "final_score": final_score,
+                    "matched_conditions": matched_conditions,
+                    "mismatched_conditions": mismatched_conditions
+                }
+            )
+
+        image_only_results = sorted(
+            ranked_results,
+            key=lambda item: item["image_score"],
+            reverse=True
+        )
+
+        # 最終スコアが高い順に並べ替える
+        ranked_results.sort(
+            key=lambda item: item["final_score"],
+            reverse=True
+        )
+
+        image_only_first = image_only_results[0]
+        final_first = ranked_results[0]
+
+        image_only_name = DISPLAY_NAMES.get(
+            image_only_first.get("class_name"),
+            image_only_first.get("class_name")
+        )
+
+        final_name = DISPLAY_NAMES.get(
+            final_first.get("class_name"),
+            final_first.get("class_name")
+        )
+
+        comparison_col1, comparison_col2 = st.columns(2)
+
+        with comparison_col1:
+            st.metric(
+                "画像のみの第1候補",
+                image_only_name
+            )
+
+        with comparison_col2:
+            st.metric(
+                "条件反映後の第1候補",
+                final_name
+            )
+
+        image_only_class = image_only_first.get("class_name")
+        final_class = final_first.get("class_name")
+
+        if image_only_class != final_class:
+            st.info(
+                "入力条件を反映したことで、"
+                "第1候補が変更されました。"
+            )
+        else:
+            st.caption(
+                "入力条件を反映しても、"
+                "第1候補は変わりませんでした。"
+            )
+
+        # 上位3件だけを表示
+        top_results = ranked_results[:3]
+
+        result_columns = st.columns(3)
+
+        for rank, result in enumerate(top_results):
+            class_name = result["class_name"]
             display_name = DISPLAY_NAMES.get(
                 class_name,
                 class_name
+            )
+
+            probability = result.get("probability")
+            image_score = result.get("image_score")
+            attribute_score = result.get("attribute_score")
+            final_score = result.get("final_score")
+            matched_conditions = result.get(
+                "matched_conditions",
+                []
+            )
+            mismatched_conditions = result.get(
+                "mismatched_conditions",
+                []
             )
 
             result_column = result_columns[rank]
 
             with result_column:
                 st.write(f"### 第{rank + 1}候補")
-                st.write(display_name)
+                st.write(f"**{display_name}**")
+
                 st.progress(float(probability))
+
                 st.write(
                     f"画像の予測確率："
                     f"{probability * 100:.1f}%"
                 )
+
+                st.write(
+                    f"入力条件による補正："
+                    f"{attribute_score:+d}点"
+                )
+
+                st.write(
+                    f"最終スコア："
+                    f"{final_score:.1f}点"
+                )
+
+                if matched_conditions:
+                    matched_text = "、".join(
+                        matched_conditions
+                    )
+
+                    st.success(
+                        f"一致した条件：{matched_text}"
+                    )
+
+                if mismatched_conditions:
+                    mismatched_text = "、".join(
+                        mismatched_conditions
+                    )
+
+                    st.warning(
+                        f"一致しない条件：{mismatched_text}"
+                    )
+
+                if (
+                    not matched_conditions
+                    and not mismatched_conditions
+                ):
+                    st.caption(
+                        "順位調整に使用された入力条件はありません。"
+                    )
 
 
 st.divider()

@@ -1,0 +1,7 @@
+class_name,manufacturer,spoke_count,spoke_type,construction,pierce_bolt
+BBS_LM,BBS,20,メッシュ,2ピース,あり
+BBS_RI_A,BBS,10,Y字スポーク,1ピース,なし
+RAYS_VR_G025,RAYS,10,ツインスポーク,1ピース,なし
+RAYS_VR_TE37_SAGA_Splus,RAYS,6,シングルスポーク,1ピース,なし
+WORK_EMOTION_CR_Kiwami,WORK,10,ツインスポーク,1ピース,なし
+WORK_MEISTER_S1_3PIECE,WORK,5,シングルスポーク,3ピース,あり
