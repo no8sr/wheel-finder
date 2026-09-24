@@ -15,6 +15,42 @@ DISPLAY_NAMES = {
         "WORK MEISTER S1 3PIECE",
 }
 
+MODEL_KEYWORDS = {
+    "BBS_LM": [
+        "BBS",
+        "LM"
+    ],
+    "BBS_RI_A": [
+        "BBS",
+        "RIA"
+    ],
+    "RAYS_VR_G025": [
+        "RAYS",
+        "VOLKRACING",
+        "G025"
+    ],
+    "RAYS_VR_TE37_SAGA_Splus": [
+        "RAYS",
+        "VOLKRACING",
+        "TE37",
+        "SAGA",
+        "SPLUS"
+    ],
+    "WORK_EMOTION_CR_Kiwami": [
+        "WORK",
+        "EMOTION",
+        "CRKIWAMI",
+        "KIWAMI",
+        "極"
+    ],
+    "WORK_MEISTER_S1_3PIECE": [
+        "WORK",
+        "MEISTER",
+        "S1",
+        "3PIECE"
+    ],
+}
+
 @st.cache_data
 def load_wheel_data():
     return pd.read_csv("wheel_data.csv")
@@ -31,6 +67,110 @@ def split_values(value):
         for item in str(value).split("|")
     ]
 
+def normalize_text(value):
+    if value is None:
+        return ""
+
+    normalized = str(value).upper()
+
+    removable_characters = (
+        " ",
+        "-",
+        "_",
+        "　",
+        ".",
+        "+",
+        "×",
+    )
+
+    for character in removable_characters:
+            normalized = normalized.replace(character, "")
+    return normalized
+
+def calculate_engraving_score(
+    class_name,
+    manufacturer,
+    engraving_text
+):
+    normalized_engraving = normalize_text(
+        engraving_text
+    )
+
+    if normalized_engraving == "":
+        return 0, [], []
+
+    score = 0
+    matched_items = []
+    mismatched_items = []
+
+    normalized_manufacturer = normalize_text(
+        manufacturer
+    )
+
+    keywords = MODEL_KEYWORDS.get(
+        class_name,
+        []
+    )
+
+    normalized_keywords = [
+        normalize_text(keyword)
+        for keyword in keywords
+    ]
+
+    # メーカー名が刻印に含まれる場合
+    known_manufacturers = [
+        "RAYS",
+        "WORK",
+        "BBS"
+    ]
+
+    detected_manufacturers = []
+
+    for name in known_manufacturers:
+        normalized_name = normalize_text(name)
+
+        if normalized_name in normalized_engraving:
+            detected_manufacturers.append(
+                normalized_name
+            )
+
+    if detected_manufacturers:
+        if normalized_manufacturer in detected_manufacturers:
+            score += 20
+            matched_items.append("刻印のメーカー名")
+        else:
+            score -= 20
+            mismatched_items.append("刻印のメーカー名")
+
+    # 製品名や型番が含まれる場合
+    matched_model_keywords = []
+
+    for keyword in normalized_keywords:
+        if len(keyword) < 2:
+            continue
+
+        if keyword in normalized_engraving:
+            matched_model_keywords.append(
+                keyword
+            )
+
+    # メーカー名だけではなく、
+    # モデル固有の文字が一致したか確認
+    model_specific_keywords = [
+        keyword
+        for keyword in matched_model_keywords
+        if keyword != normalized_manufacturer
+        and keyword not in [
+            "VOLKRACING",
+            "EMOTION"
+        ]
+    ]
+
+    if model_specific_keywords:
+        score += 25
+        matched_items.append("刻印・型番")
+
+    return score, matched_items, mismatched_items
 
 def condition_matches(
     csv_value,
@@ -384,6 +524,15 @@ with st.expander("詳細条件を入力する"):
         placeholder="例：WORK、RAYS、18×7.5J、ET45"
     )
 
+    st.caption(
+    "刻印は大文字・小文字、空白、"
+    "ハイフンの違いを無視して照合します。"
+    )
+
+    st.caption(
+    "センターキャップが交換されている場合、"
+    "刻印情報による候補順位が正しくない可能性があります。"
+    )
 
 # 検索実行
 st.header("3. 検索")
@@ -419,6 +568,7 @@ if st.button(
                 attribute_score = 0
                 matched_conditions = []
                 mismatched_conditions = []
+                engraving_score = 0
 
             else:
                 wheel = wheel_rows.iloc[0]
@@ -438,6 +588,26 @@ if st.button(
                 attribute_score = score_result[0]
                 matched_conditions = score_result[1]
                 mismatched_conditions = score_result[2]
+
+                engraving_result = calculate_engraving_score(
+                    class_name=class_name,
+                    manufacturer=wheel.get("manufacturer"),
+                    engraving_text=engraving
+                )
+
+                engraving_score = engraving_result[0]
+                engraving_matches = engraving_result[1]
+                engraving_mismatches = engraving_result[2]
+
+                attribute_score += engraving_score
+
+                matched_conditions.extend(
+                    engraving_matches
+                )
+
+                mismatched_conditions.extend(
+                    engraving_mismatches
+                )
 
             image_score = probability * 100
             final_score = image_score + attribute_score
