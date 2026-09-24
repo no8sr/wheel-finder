@@ -84,7 +84,7 @@ def normalize_text(value):
     )
 
     for character in removable_characters:
-            normalized = normalized.replace(character, "")
+        normalized = normalized.replace(character, "")
     return normalized
 
 def calculate_engraving_score(
@@ -190,7 +190,8 @@ def calculate_attribute_score(
     selected_inch,
     selected_holes,
     selected_pcd,
-    selected_pierce_bolt
+    selected_pierce_bolt,
+    selected_color
 ):
     score = 0
     matched_conditions = []
@@ -276,6 +277,18 @@ def calculate_attribute_score(
         else:
             score -= 3
             mismatched_conditions.append("ピアスボルト")
+    
+    # 色
+    if selected_color != "指定なし":
+        if condition_matches(
+            wheel["colors"],
+            selected_color
+        ):
+            score += 3
+            matched_conditions.append("色")
+        else:
+            score -= 1
+            mismatched_conditions.append("色")
 
     return (
         score,
@@ -307,12 +320,12 @@ st.info(
 with st.expander("使い方"):
     st.markdown(
         """
-        1. ホイールの画像をアップロードします。
-        2. 分かる範囲で検索条件を選択します。
-        3. 「候補を検索」を押します。
-        4. 検索結果として上位3件の候補が表示されます。
+1. ホイールの画像をアップロードします。
+2. 分かる範囲で検索条件を選択します。
+3. 「候補を検索」を押します。
+4. 検索結果として上位3件の候補が表示されます。
 
-        分からない項目は「指定なし」のままで検索できます。
+分からない項目は「指定なし」のままで検索できます。
         """
     )
 
@@ -329,7 +342,7 @@ st.header("1. ホイール画像の選択")
 
 uploaded_file = st.file_uploader(
     "ホイール画像をアップロードしてください",
-    type=["jpg", "jpeg", "png"]
+    type=["jpg", "jpeg", "png", "webp"]
 )
 
 if uploaded_file is not None:
@@ -425,15 +438,17 @@ with col5:
         ]
     )
 
+    st.caption(
+        "色は再塗装などの影響を受けるため、"
+        "順位への影響を小さくしています。"
+    )
+
 with col6:
-    wheel_type = st.selectbox(
-        "ホイールの種類",
-        [
-            "指定なし",
-            "純正",
-            "社外",
-            "不明"
-        ]
+    st.selectbox(
+        "検索対象",
+        ["社外ホイール"],
+        disabled=True,
+        help="現在はRAYS、WORK、BBSの6モデルを対象としています。"
     )
 
 
@@ -582,7 +597,8 @@ if st.button(
                     selected_inch=inch,
                     selected_holes=holes,
                     selected_pcd=pcd,
-                    selected_pierce_bolt=pierce_bolt
+                    selected_pierce_bolt=pierce_bolt,
+                    selected_color=color
                 )
 
                 attribute_score = score_result[0]
